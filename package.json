@@ -1,0 +1,26 @@
+{
+  "name": "noteflow-cli",
+  "version": "1.0.0",
+  "description": "Interactive terminal file manager built with pure Node.js APIs",
+  "main": "bin/index.js",
+  "type": "module",
+  "bin": {
+    "noteflow": "./bin/index.js"
+  },
+  "scripts": {
+    "start": "node bin/index.js",
+    "test": "node --test tests/fs.test.js"
+  },
+  "keywords": [
+    "cli",
+    "file-manager",
+    "terminal",
+    "nodejs",
+    "streams"
+  ],
+  "author": "abhishekpr-devops",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
