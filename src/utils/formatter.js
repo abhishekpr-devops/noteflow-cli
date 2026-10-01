@@ -15,6 +15,20 @@ export const colors = {
 };
 
 /**
+ * Returns a Unicode glyph prefix for a file or directory name.
+ * @param {string} name - File or directory name
+ * @param {boolean} isDirectory - Whether the entry is a directory
+ * @returns {string} Glyph with trailing space
+ */
+export function getFileGlyph(name, isDirectory) {
+  if (isDirectory) return '📁 ';
+  if (name.endsWith('.js') || name.endsWith('.mjs')) return '⚡ ';
+  if (name.endsWith('.json')) return '⚙  ';
+  if (name.endsWith('.md') || name.endsWith('.txt')) return '📝 ';
+  return '📄 ';
+}
+
+/**
  * Converts raw bytes into human-readable metric strings (B, KB, MB, GB).
  * @param {number} bytes - File size in bytes
  * @returns {string} Formatted string
@@ -56,22 +70,24 @@ export function formatPermissions(mode) {
 }
 
 /**
- * Generates an ASCII visual progress bar for streams.
+ * Generates a Unicode block visual progress bar for streams.
  * @param {number} percentage - Integer or float between 0 and 100
- * @param {number} [barLength=30] - Terminal column width of the progress bar
+ * @param {number} [barLength=24] - Number of block characters in the bar
  * @returns {string}
  */
-export function renderProgressBar(percentage, barLength = 30) {
+export function renderProgressBar(percentage, barLength = 24) {
   const clamped = Math.max(0, Math.min(100, percentage));
   const completed = Math.round((clamped / 100) * barLength);
   const remaining = barLength - completed;
 
-  const bar = '='.repeat(completed) + (completed < barLength ? '>' : '') + ' '.repeat(Math.max(0, remaining - 1));
-  return `[${bar}] ${clamped.toFixed(1)}%`;
+  const filled = '█'.repeat(completed);
+  const empty = '░'.repeat(remaining);
+
+  return `${colors.cyan}${filled}${colors.dim}${empty}${colors.reset} ${clamped.toFixed(1)}%`;
 }
 
 /**
- * Prints a clean columnar table to the console.
+ * Prints a clean columnar table with Unicode box-drawing borders to the console.
  * @param {Array<Object>} rows - Array of objects representing rows
  * @param {Array<string>} headers - Column keys to display
  */
@@ -81,35 +97,53 @@ export function printTable(rows, headers) {
     return;
   }
 
-  // Calculate maximum column widths
+  const CELL_SEP = ' │ ';
+
   const widths = {};
   headers.forEach((h) => {
     widths[h] = h.length;
     rows.forEach((row) => {
-      const val = row[h] ? String(row[h]) : '';
+      let val = row[h] !== undefined ? String(row[h]) : '';
+      if (h === 'name') {
+        val = getFileGlyph(row.name, row.isDirectory) + val;
+        if (row.isDirectory && !val.endsWith('/')) {
+          val += '/';
+        }
+      }
       if (val.length > widths[h]) {
         widths[h] = val.length;
       }
     });
   });
 
-  // Render header
-  const headerLine = headers.map((h) => h.toUpperCase().padEnd(widths[h])).join('  ');
-  console.log(colors.bold + headerLine + colors.reset);
-  console.log(colors.dim + headers.map((h) => '-'.repeat(widths[h])).join('  ') + colors.reset);
+  const buildBorder = (left, mid, right, fill) =>
+    left + headers.map((h) => fill.repeat(widths[h])).join(mid) + right;
 
-  // Render data rows
+  const topBorder    = buildBorder('┌', '┬', '┐', '─');
+  const headerSep    = buildBorder('├', '┼', '┤', '─');
+  const bottomBorder = buildBorder('└', '┴', '┘', '─');
+
+  const headerLine = '│' + headers.map((h) => h.toUpperCase().padEnd(widths[h])).join(CELL_SEP) + '│';
+  console.log(colors.bold + topBorder + colors.reset);
+  console.log(colors.bold + headerLine + colors.reset);
+  console.log(headerSep);
+
   rows.forEach((row) => {
-    const line = headers
-      .map((h) => {
-        const val = row[h] !== undefined ? String(row[h]) : '';
-        const padded = val.padEnd(widths[h]);
-        if (h === 'name') {
-          return row.isDirectory ? `${colors.cyan}${padded}${colors.reset}` : padded;
+    const cells = headers.map((h) => {
+      let val = row[h] !== undefined ? String(row[h]) : '';
+      if (h === 'name') {
+        val = getFileGlyph(row.name, row.isDirectory) + val;
+        if (row.isDirectory && !val.endsWith('/')) {
+          val += '/';
         }
-        return padded;
-      })
-      .join('  ');
-    console.log(line);
+        if (row.isDirectory) {
+          return colors.cyan + val.padEnd(widths[h]) + colors.reset;
+        }
+      }
+      return val.padEnd(widths[h]);
+    });
+    console.log('│' + cells.join(CELL_SEP) + '│');
   });
+
+  console.log(bottomBorder);
 }

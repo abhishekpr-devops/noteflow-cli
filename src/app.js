@@ -26,10 +26,23 @@ export class FileCommanderApp {
    */
   async start() {
     console.clear();
-    console.log(`${colors.bold}${colors.cyan}=== NoteFlow Terminal File Manager ===${colors.reset}`);
-    console.log(`${colors.dim}Type 'exit' to quit or Ctrl+C. Root: ${this.context.rootDir}${colors.reset}\n`);
 
-    // Verify and reconcile incomplete crash operations
+    const bannerTitle = 'NOTEFLOW CLI  v1.0.0';
+    const bannerSubtitle = 'Fast, native Node.js filesystem navigator';
+    const sandboxLine = `Sandbox: ${this.context.rootDir}`;
+
+    const contentLines = [bannerTitle, bannerSubtitle, sandboxLine];
+    const contentWidth = Math.max(...contentLines.map((l) => l.textLength || l.length));
+    const pad = 3;
+    const borderWidth = contentWidth + pad * 2 + 2;
+    const dashes = '─'.repeat(borderWidth - 2);
+
+    console.log(`${colors.bold}┌${dashes}┐${colors.reset}`);
+    console.log(`${colors.bold}│${' '.repeat(pad)}${bannerTitle}${' '.repeat(contentWidth - bannerTitle.length + pad)}│${colors.reset}`);
+    console.log(`${colors.bold}│${' '.repeat(pad)}${bannerSubtitle}${' '.repeat(contentWidth - bannerSubtitle.length + pad)}│${colors.reset}`);
+    console.log(`${colors.dim}│${' '.repeat(pad)}${sandboxLine}${' '.repeat(contentWidth - sandboxLine.length + pad)}│${colors.reset}`);
+    console.log(`${colors.bold}└${dashes}┘${colors.reset}\n`);
+
     await this.checkCrashRecovery();
 
     this.rl = readline.createInterface({
@@ -50,7 +63,10 @@ export class FileCommanderApp {
    */
   promptUser() {
     const relPath = path.relative(this.context.rootDir, this.context.currentDir) || '/';
-    this.rl.question(`${colors.green}noteflow${colors.reset}:${colors.blue}${relPath}${colors.reset}$ `, async (line) => {
+    const badge = '\x1b[46m\x1b[30m NOTEFLOW \x1b[0m';
+    const pathPart = `\x1b[44m\x1b[37m ${relPath} \x1b[0m`;
+    const promptStr = `${badge}${pathPart} ❯ `;
+    this.rl.question(promptStr, async (line) => {
       await this.processCommand(line);
       this.promptUser();
     });
