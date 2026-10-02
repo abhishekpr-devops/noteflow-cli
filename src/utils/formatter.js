@@ -87,9 +87,48 @@ export function renderProgressBar(percentage, barLength = 24) {
 }
 
 /**
- * Prints a clean columnar table with Unicode box-drawing borders to the console.
- * @param {Array<Object>} rows - Array of objects representing rows
- * @param {Array<string>} headers - Column keys to display
+ * Strips ANSI color escape sequences from a string to measure visible length.
+ */
+function stripAnsi(str) {
+  return String(str).replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/**
+ * Calculates visual display width in monospace terminal columns.
+ * Unicode emojis like 📁, ⚡, ⚙, 📝 occupy 2 columns visually.
+ */
+function getDisplayWidth(str) {
+  const clean = stripAnsi(str);
+  let width = 0;
+  for (const char of clean) {
+    const code = char.codePointAt(0);
+    // Common ranges for full-width characters and emojis
+    if (
+      (code >= 0x1f300 && code <= 0x1f9ff) || // Miscellaneous Symbols and Pictographs
+      (code >= 0x2600 && code <= 0x27bf) ||   // Miscellaneous Symbols & Dingbats
+      (code >= 0xfe00 && code <= 0xfe0f)      // Variation selectors
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+/**
+ * Pads a string based on visible terminal display width instead of byte length.
+ */
+function padDisplay(str, targetWidth) {
+  const currentWidth = getDisplayWidth(str);
+  const diff = targetWidth - currentWidth;
+  return diff > 0 ? str + ' '.repeat(diff) : str;
+}
+
+/**
+ * Prints a perfectly aligned columnar table using box-drawing characters.
+ * @param {Array<Object>} rows - Array of row objects
+ * @param {Array<string>} headers - Column headers to display
  */
 export function printTable(rows, headers) {
   if (!rows || rows.length === 0) {
@@ -97,53 +136,63 @@ export function printTable(rows, headers) {
     return;
   }
 
-  const CELL_SEP = ' │ ';
-
+  // Calculate visual width for every column
   const widths = {};
   headers.forEach((h) => {
     widths[h] = h.length;
     rows.forEach((row) => {
-      let val = row[h] !== undefined ? String(row[h]) : '';
+      let val = '';
       if (h === 'name') {
-        val = getFileGlyph(row.name, row.isDirectory) + val;
-        if (row.isDirectory && !val.endsWith('/')) {
-          val += '/';
-        }
+        const glyph = getFileGlyph ? getFileGlyph(row.name, row.isDirectory) : '';
+        val = `${glyph}${row.name}${row.isDirectory ? '/' : ''}`;
+      } else {
+        val = row[h] !== undefined ? String(row[h]) : '';
       }
-      if (val.length > widths[h]) {
-        widths[h] = val.length;
+
+      const w = getDisplayWidth(val);
+      if (w > widths[h]) {
+        widths[h] = w;
       }
     });
   });
 
-  const buildBorder = (left, mid, right, fill) =>
-    left + headers.map((h) => fill.repeat(widths[h])).join(mid) + right;
+  // Construct border lines
+  const topBorder = '┌' + headers.map((h) => '─'.repeat(widths[h] + 2)).join('┬') + '┐';
+  const midBorder = '├' + headers.map((h) => '─'.repeat(widths[h] + 2)).join('┼') + '┤';
+  const botBorder = '└' + headers.map((h) => '─'.repeat(widths[h] + 2)).join('┴') + '┘';
 
-  const topBorder    = buildBorder('┌', '┬', '┐', '─');
-  const headerSep    = buildBorder('├', '┼', '┤', '─');
-  const bottomBorder = buildBorder('└', '┴', '┘', '─');
+  // Render top border
+  console.log(topBorder);
 
-  const headerLine = '│' + headers.map((h) => h.toUpperCase().padEnd(widths[h])).join(CELL_SEP) + '│';
-  console.log(colors.bold + topBorder + colors.reset);
-  console.log(colors.bold + headerLine + colors.reset);
-  console.log(headerSep);
+  // Render table header
+  const headerContent = headers
+    .map((h) => ` ${padDisplay(h.toUpperCase(), widths[h])} `)
+    .join('│');
+  console.log(`│${colors.bold}${headerContent}${colors.reset}│`);
 
+  // Render divider
+  console.log(midBorder);
+
+  // Render data rows
   rows.forEach((row) => {
-    const cells = headers.map((h) => {
-      let val = row[h] !== undefined ? String(row[h]) : '';
-      if (h === 'name') {
-        val = getFileGlyph(row.name, row.isDirectory) + val;
-        if (row.isDirectory && !val.endsWith('/')) {
-          val += '/';
+    const rowContent = headers
+      .map((h) => {
+        let text = '';
+        if (h === 'name') {
+          const glyph = getFileGlyph ? getFileGlyph(row.name, row.isDirectory) : '';
+          const nameWithSuffix = `${row.name}${row.isDirectory ? '/' : ''}`;
+          text = `${glyph}${row.isDirectory ? colors.cyan + nameWithSuffix + colors.reset : nameWithSuffix}`;
+        } else {
+          text = row[h] !== undefined ? String(row[h]) : '';
         }
-        if (row.isDirectory) {
-          return colors.cyan + val.padEnd(widths[h]) + colors.reset;
-        }
-      }
-      return val.padEnd(widths[h]);
-    });
-    console.log('│' + cells.join(CELL_SEP) + '│');
+
+        return ` ${padDisplay(text, widths[h])} `;
+      })
+      .join('│');
+
+    console.log(`│${rowContent}│`);
   });
 
-  console.log(bottomBorder);
+  // Render bottom border
+  console.log(botBorder);
 }
