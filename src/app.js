@@ -19,6 +19,7 @@ export class FileCommanderApp {
     this.context = new SessionContext(rootDir);
     this.logger = new OperationLogger(this.context.rootDir);
     this.rl = null;
+    this.isExiting = false;
   }
 
   /**
@@ -62,13 +63,16 @@ export class FileCommanderApp {
    * Generates interactive prompt showing relative or base path.
    */
   promptUser() {
+    if (this.isExiting || (this.rl && this.rl.closed)) return;
     const relPath = path.relative(this.context.rootDir, this.context.currentDir) || '/';
     const badge = '\x1b[46m\x1b[30m NOTEFLOW \x1b[0m';
     const pathPart = `\x1b[44m\x1b[37m ${relPath} \x1b[0m`;
     const promptStr = `${badge}${pathPart} ❯ `;
     this.rl.question(promptStr, async (line) => {
       await this.processCommand(line);
-      this.promptUser();
+      if (!this.isExiting) {
+        this.promptUser();
+      }
     });
   }
 
@@ -158,6 +162,7 @@ export class FileCommanderApp {
    * Graceful cleanup handling for SIGINT (Ctrl+C) and exit.
    */
   handleShutdown() {
+    this.isExiting = true;
     console.log(`\n${colors.dim}Exiting NoteFlow File Manager. Goodbye!${colors.reset}`);
     if (this.rl) this.rl.close();
     process.exit(0);

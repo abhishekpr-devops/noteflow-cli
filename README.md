@@ -8,6 +8,8 @@ An interactive, non-blocking terminal file manager built strictly using native N
 
 `noteflow-cli` is a terminal-based file management environment developed without external runtime libraries or native shell command invocations (such as `ls`, `cp`, `mv`, `rm`, or `find`). The application relies entirely on Node.js core modules (`node:fs/promises`, `node:stream`, `node:path`, `node:readline`) to demonstrate non-blocking asynchronous I/O, path confinement, stream piping, and crash-resilient command patterns.
 
+![NoteFlow CLI Demo](assets/demo.gif)
+
 ---
 
 ## Key Features
@@ -40,6 +42,8 @@ An interactive, non-blocking terminal file manager built strictly using native N
 
 ```text
 noteflow-cli/
+├── assets/
+│   └── demo.gif             # Animated recording demo
 ├── bin/
 │   └── index.js             # CLI binary entry point (bootstrapper & shebang)
 ├── src/
@@ -59,9 +63,9 @@ noteflow-cli/
 │       └── AppError.js      # Normalized POSIX error handling
 ├── tests/
 │   └── fs.test.js           # Automated test suite using node:test
+├── demo.tape                # VHS automated recording tape
 ├── package.json             # ECMAScript Modules (ESM) package configuration
 └── README.md
-
 ```
 
 ---
